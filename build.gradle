@@ -58,3 +58,26 @@ tasks.register('checkstyle', Checkstyle) {
     exclude("**/build/**")
     exclude("**/generated/**")
 }
+
+
+subprojects {
+    apply plugin: 'checkstyle'
+
+    checkstyle {
+        toolVersion = '10.3.1'
+        configFile = rootProject.file('config/checkstyle/checkstyle.xml')
+        configProperties.suppressionsFile = rootProject.file('config/checkstyle/suppressions.xml')
+    }
+
+    tasks.register("checkstyleMain", Checkstyle) {
+        description = "Custom checkstyle for main source set"
+        classpath = files()
+        source = fileTree("${project.projectDir}/src/main/java") {
+            exclude '**/gen/**', '**/build/**'
+        }
+        reports {
+            xml.required.set(true)
+            html.required.set(false)
+        }
+    }
+}
