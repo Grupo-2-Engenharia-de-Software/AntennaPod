@@ -1,6 +1,7 @@
 buildscript {
     ext.agpVersion = "8.6.0"
 }
+
 plugins {
     id 'com.android.application' version "$agpVersion" apply false
     id 'com.android.library' version "$agpVersion" apply false
@@ -45,19 +46,20 @@ project.ext {
 }
 
 checkstyle {
-    toolVersion '10.3.1'
+    toolVersion = '10.3.1'
+    configFile = rootProject.file('config/checkstyle/sun_checks.xml')
 }
 
-tasks.register('checkstyle', Checkstyle) {
-    minHeapSize = "200m"
-    maxHeapSize = "2g"
-    classpath = files()
-    source "${project.rootDir}"
-    exclude("**/generated-sources/**")
-    exclude("**/gen/**")
-    exclude("**/build/**")
-    exclude("**/generated/**")
-}
+// tasks.register('checkstyle', Checkstyle) {
+//     minHeapSize = "200m"
+//     maxHeapSize = "2g"
+//     classpath = files()
+//     source "${project.rootDir}"
+//     exclude("**/generated-sources/**")
+//     exclude("**/gen/**")
+//     exclude("**/build/**")
+//     exclude("**/generated/**")
+// }
 
 
 subprojects {
@@ -65,19 +67,33 @@ subprojects {
 
     checkstyle {
         toolVersion = '10.3.1'
-        configFile = rootProject.file('config/checkstyle/checkstyle.xml')
-        configProperties.suppressionsFile = rootProject.file('config/checkstyle/suppressions.xml')
+        configFile = rootProject.file('config/checkstyle/google_checks.xml')
     }
 
-    tasks.register("checkstyleMain", Checkstyle) {
-        description = "Custom checkstyle for main source set"
-        classpath = files()
-        source = fileTree("${project.projectDir}/src/main/java") {
-            exclude '**/gen/**', '**/build/**'
-        }
-        reports {
-            xml.required.set(true)
-            html.required.set(false)
+    afterEvaluate {
+    if (file("${project.projectDir}/src/main/java").exists()) {
+        tasks.register("checkstyleMain", Checkstyle) {
+            group = "verification"
+            description = "Aplica Checkstyle (Google) no código-fonte Java principal"
+
+            source = fileTree("${project.projectDir}/src/main/java") {
+                exclude '**/gen/**', '**/build/**'
+            }
+
+            def isAndroid = project.plugins.hasPlugin("com.android.application") || project.plugins.hasPlugin("com.android.library")
+
+            if (isAndroid) {
+                classpath = files(android.bootClasspath)
+            } else {
+                def javaClasspath = System.getProperty("java.class.path").split(File.pathSeparator)
+                classpath = files(javaClasspath)
+            }
+
+            reports {
+                xml.required.set(true)
+                html.required.set(true)
+            }
         }
     }
+}
 }
