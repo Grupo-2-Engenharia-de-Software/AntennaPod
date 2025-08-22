@@ -52,14 +52,14 @@ public class SleepTimerPreferencesTest {
 
     @Test
     public void testLastTimerValid() {
-        SleepTimerPreferences.setLastTimer("37");
+        SleepTimerPreferences.setLastTimer(37);
 
-        assertEquals("37", SleepTimerPreferences.lastTimerValue());
+        assertEquals(37, SleepTimerPreferences.lastTimerValue());
     }
 
     @Test
     public void testLastTimerMillisValid() {
-        SleepTimerPreferences.setLastTimer("37");
+        SleepTimerPreferences.setLastTimer(37);
 
         // 37 minutes in milliseconds
         assertEquals(37 * 60 * 1000, SleepTimerPreferences.timerMillis());

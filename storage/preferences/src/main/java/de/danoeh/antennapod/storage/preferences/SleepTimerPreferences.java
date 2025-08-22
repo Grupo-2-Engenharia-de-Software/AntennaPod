@@ -37,16 +37,22 @@ public class SleepTimerPreferences {
         SleepTimerPreferences.prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
     }
 
-    public static void setLastTimer(String value) {
-        prefs.edit().putString(PREF_VALUE, value).apply();
+    public static void setLastTimer(long value) {
+        prefs.edit().putString(PREF_VALUE, Long.toString(value)).apply();
     }
 
-    public static String lastTimerValue() {
-        return prefs.getString(PREF_VALUE, DEFAULT_LAST_TIMER);
+    public static long lastTimerValue() {
+        long value;
+        try {
+            value = Long.parseLong(prefs.getString(PREF_VALUE, DEFAULT_LAST_TIMER));
+        } catch (NumberFormatException e) {
+            value = Long.parseLong(DEFAULT_LAST_TIMER);
+        }
+        return value;
     }
 
     public static long timerMillis() {
-        long value = Long.parseLong(lastTimerValue());
+        long value = lastTimerValue();
         return TimeUnit.MINUTES.toMillis(value);
     }
 
