@@ -174,12 +174,11 @@ public class PreferenceUpgraderTest {
         upgraderPrefs.edit().putInt("version_code", 2079999).apply();
 
         // Set invalid legacy values
-        SleepTimerPreferences.setLastTimer("not_a_number");
+        context.getSharedPreferences(SleepTimerPreferences.PREF_NAME, Context.MODE_PRIVATE)
+                .edit().putString("LastValue", "not_a_number").apply();
         context.getSharedPreferences(SleepTimerPreferences.PREF_NAME, Context.MODE_PRIVATE)
                 .edit().putInt("LastTimeUnit", 5).apply(); // Out of range
 
-        // Código falha na linha 123 de PreferenceUpgrader.java
-        // encontramos um bug!
         PreferenceUpgrader.checkUpgrades(context);
     }
 }
