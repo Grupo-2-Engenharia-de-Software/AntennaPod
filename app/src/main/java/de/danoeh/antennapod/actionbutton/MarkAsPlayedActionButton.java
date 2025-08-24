@@ -17,25 +17,25 @@ public class MarkAsPlayedActionButton extends ItemActionButton {
 
     @Override
     @StringRes
-    public int getLabel() {
+    protected int getLabel() {
         return (item.hasMedia() ? R.string.mark_as_played_label : R.string.mark_read_no_media_label);
     }
 
     @Override
     @DrawableRes
-    public int getDrawable() {
+    protected int getDrawable() {
         return R.drawable.ic_check;
     }
 
     @Override
-    public void onClick(Context context) {
+    protected void onClick(Context context) {
         if (!item.isPlayed()) {
             DBWriter.markItemPlayed(item, FeedItem.PLAYED, true);
         }
     }
 
     @Override
-    public int getVisibility() {
+    protected int getVisibility() {
         return (item.isPlayed()) ? View.INVISIBLE : View.VISIBLE;
     }
 }

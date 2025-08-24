@@ -21,18 +21,18 @@ public class DeleteActionButton extends ItemActionButton {
 
     @Override
     @StringRes
-    public int getLabel() {
+    protected int getLabel() {
         return R.string.delete_label;
     }
 
     @Override
     @DrawableRes
-    public int getDrawable() {
+    protected int getDrawable() {
         return R.drawable.ic_delete;
     }
 
     @Override
-    public void onClick(Context context) {
+    protected void onClick(Context context) {
         final FeedMedia media = item.getMedia();
         if (media == null) {
             return;
@@ -43,7 +43,7 @@ public class DeleteActionButton extends ItemActionButton {
     }
 
     @Override
-    public int getVisibility() {
+    protected int getVisibility() {
         if (item.getMedia() != null && (item.getMedia().isDownloaded() || item.getFeed().isLocalFeed())) {
             return View.VISIBLE;
         }

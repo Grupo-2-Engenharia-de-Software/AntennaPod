@@ -18,18 +18,18 @@ public class CancelDownloadActionButton extends ItemActionButton {
 
     @Override
     @StringRes
-    public int getLabel() {
+    protected int getLabel() {
         return R.string.cancel_download_label;
     }
 
     @Override
     @DrawableRes
-    public int getDrawable() {
+    protected int getDrawable() {
         return R.drawable.ic_cancel;
     }
 
     @Override
-    public void onClick(Context context) {
+    protected void onClick(Context context) {
         FeedMedia media = item.getMedia();
         DownloadServiceInterface.get().cancel(context, media);
         item.disableAutoDownload();

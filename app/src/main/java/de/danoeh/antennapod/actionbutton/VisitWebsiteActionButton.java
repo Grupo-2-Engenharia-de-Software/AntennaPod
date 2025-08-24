@@ -16,23 +16,23 @@ public class VisitWebsiteActionButton extends ItemActionButton {
 
     @Override
     @StringRes
-    public int getLabel() {
+    protected int getLabel() {
         return R.string.visit_website_label;
     }
 
     @Override
     @DrawableRes
-    public int getDrawable() {
+    protected int getDrawable() {
         return R.drawable.ic_web;
     }
 
     @Override
-    public void onClick(Context context) {
+    protected void onClick(Context context) {
         IntentUtils.openInBrowser(context, item.getLink());
     }
 
     @Override
-    public int getVisibility() {
+    protected int getVisibility() {
         return (item.getLink() == null) ? View.INVISIBLE : View.VISIBLE;
     }
 }
