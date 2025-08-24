@@ -1,9 +1,17 @@
-package de.danoeh.antennapod.activity;
+package de.danoeh.antennapod.activity.handler;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.media.AudioManager;
 import android.view.KeyEvent;
 import android.view.View;
 import android.widget.EditText;
+
+import de.danoeh.antennapod.activity.MainActivity;
+import de.danoeh.antennapod.net.download.serviceinterface.FeedUpdateManager;
+import de.danoeh.antennapod.net.sync.serviceinterface.SynchronizationQueue;
+import de.danoeh.antennapod.storage.importexport.AutomaticDatabaseExportWorker;
+import de.danoeh.antennapod.storage.preferences.UserPreferences;
 import de.danoeh.antennapod.ui.appstartintent.MediaButtonStarter;
 import org.greenrobot.eventbus.EventBus;
 
@@ -70,6 +78,35 @@ public class KeyboardInputHandler {
                 return false;
             default:
                 return false;
+        }
+    }
+
+    public static class StartupManager {
+        private static final String PREF_NAME = "MainActivityPrefs";
+        private static final String PREF_IS_FIRST_LAUNCH = "prefMainActivityIsFirstLaunch";
+
+        private final MainActivity activity;
+
+        public StartupManager(MainActivity activity) {
+            this.activity = activity;
+        }
+
+        public void checkFirstLaunch() {
+            SharedPreferences prefs = activity.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+            if (prefs.getBoolean(PREF_IS_FIRST_LAUNCH, true)) {
+                FeedUpdateManager.getInstance().restartUpdateAlarm(activity, true);
+                UserPreferences.setBottomNavigationEnabled(true);
+
+                SharedPreferences.Editor edit = prefs.edit();
+                edit.putBoolean(PREF_IS_FIRST_LAUNCH, false);
+                edit.apply();
+            }
+        }
+
+        public void initializeAppServices() {
+            FeedUpdateManager.getInstance().restartUpdateAlarm(activity, false);
+            SynchronizationQueue.getInstance().syncIfNotSyncedRecently();
+            AutomaticDatabaseExportWorker.enqueueIfNeeded(activity, false);
         }
     }
 }

@@ -1,16 +1,13 @@
-package de.danoeh.antennapod.activity;
+package de.danoeh.antennapod.activity.manager;
 
 import android.content.Context;
 import android.content.res.Configuration;
 import android.util.DisplayMetrics;
 import android.view.View;
-import android.widget.RelativeLayout;
-import androidx.annotation.StyleRes;
+
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.drawerlayout.widget.DrawerLayout;
 import de.danoeh.antennapod.R;
-import de.danoeh.antennapod.storage.preferences.UserPreferences;
-import de.danoeh.antennapod.ui.common.ThemeSwitcher;
 
 public class DrawerManager {
     private final Context context;

@@ -1,12 +1,12 @@
-package de.danoeh.antennapod.activity;
+package de.danoeh.antennapod.activity.manager;
 
-import android.content.Intent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.RelativeLayout;
 import androidx.core.graphics.Insets;
 import androidx.fragment.app.FragmentContainerView;
 import de.danoeh.antennapod.R;
+import de.danoeh.antennapod.activity.MainActivity;
 import de.danoeh.antennapod.playback.service.PlaybackServiceInterface;
 import de.danoeh.antennapod.storage.preferences.PlaybackPreferences;
 import de.danoeh.antennapod.ui.common.IntentUtils;

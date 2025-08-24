@@ -1,9 +1,11 @@
-package de.danoeh.antennapod.activity;
+package de.danoeh.antennapod.activity.handler;
 
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import de.danoeh.antennapod.R;
+import de.danoeh.antennapod.activity.MainActivity;
+import de.danoeh.antennapod.activity.manager.NavigationManager;
 import de.danoeh.antennapod.event.MessageEvent;
 import de.danoeh.antennapod.ui.appstartintent.MainActivityStarter;
 import de.danoeh.antennapod.ui.screen.SearchFragment;

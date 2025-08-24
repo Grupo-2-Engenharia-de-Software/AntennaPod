@@ -1,4 +1,4 @@
-package de.danoeh.antennapod.activity;
+package de.danoeh.antennapod.activity.observer;
 
 import android.content.Context;
 import androidx.work.WorkInfo;
