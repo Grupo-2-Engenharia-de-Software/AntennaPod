@@ -353,7 +353,7 @@ public class MainActivity extends CastEnabledActivity {
         }
     }
 
-    public boolean isDrawerOpen() {
+    private boolean isDrawerOpen() {
         return drawerLayout != null && navDrawer != null && drawerLayout.isDrawerOpen(navDrawer);
     }
 
@@ -399,7 +399,7 @@ public class MainActivity extends CastEnabledActivity {
         return recycledViewPool;
     }
 
-    public Fragment createFragmentInstance(String tag, Bundle args) {
+    private Fragment createFragmentInstance(String tag, Bundle args) {
         Log.d(TAG, "loadFragment(tag: " + tag + ", args: " + args + ")");
         Fragment fragment;
         switch (tag) {
@@ -459,7 +459,7 @@ public class MainActivity extends CastEnabledActivity {
         loadFragment(fragment);
     }
 
-    public void loadFragment(Fragment fragment) {
+    private void loadFragment(Fragment fragment) {
         FragmentManager fragmentManager = getSupportFragmentManager();
         // clear back stack
         for (int i = 0; i < fragmentManager.getBackStackEntryCount(); i++) {

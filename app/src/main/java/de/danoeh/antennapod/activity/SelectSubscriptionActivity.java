@@ -74,7 +74,7 @@ public class SelectSubscriptionActivity extends AppCompatActivity {
 
     }
 
-    public List<Feed> getFeedItems(List<NavDrawerData.DrawerItem> items, List<Feed> result) {
+    private List<Feed> getFeedItems(List<NavDrawerData.DrawerItem> items, List<Feed> result) {
         for (NavDrawerData.DrawerItem item : items) {
             if (item.type == NavDrawerData.DrawerItem.Type.TAG) {
                 getFeedItems(((NavDrawerData.TagDrawerItem) item).getChildren(), result);

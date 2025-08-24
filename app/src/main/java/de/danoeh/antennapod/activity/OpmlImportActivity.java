@@ -132,7 +132,7 @@ public class OpmlImportActivity extends ToolbarActivity {
         importUri(uri);
     }
 
-    void importUri(@Nullable Uri uri) {
+    private void importUri(@Nullable Uri uri) {
         if (uri == null) {
             new MaterialAlertDialogBuilder(this)
                     .setMessage(R.string.opml_import_error_no_file)
