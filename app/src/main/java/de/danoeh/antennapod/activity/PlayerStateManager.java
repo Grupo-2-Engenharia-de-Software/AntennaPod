@@ -10,7 +10,7 @@ import de.danoeh.antennapod.R;
 import de.danoeh.antennapod.playback.service.PlaybackServiceInterface;
 import de.danoeh.antennapod.storage.preferences.PlaybackPreferences;
 import de.danoeh.antennapod.ui.common.IntentUtils;
-import de.danoeh.antennapod.ui.screen.playback.audio.AudioPlayerFragment; // Import correto
+import de.danoeh.antennapod.ui.screen.playback.audio.AudioPlayerFragment;
 import de.danoeh.antennapod.ui.view.LockableBottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import androidx.annotation.NonNull;
@@ -20,16 +20,18 @@ public class PlayerStateManager {
     private LockableBottomSheetBehavior<View> sheetBehavior;
     private View playerView;
     private Insets systemBarInsets;
+    private BottomSheetBehavior.BottomSheetCallback bottomSheetCallback;
 
     public PlayerStateManager(MainActivity activity) {
         this.activity = activity;
+        this.bottomSheetCallback = createBottomSheetCallback();
     }
 
     public void initialize(View bottomSheet) {
         sheetBehavior = (LockableBottomSheetBehavior<View>) BottomSheetBehavior.from(bottomSheet);
         sheetBehavior.setHideable(false);
         playerView = bottomSheet;
-        sheetBehavior.addBottomSheetCallback(getBottomSheetCallback());
+        sheetBehavior.addBottomSheetCallback(bottomSheetCallback);
     }
 
     public void setSystemBarInsets(Insets insets) {
@@ -42,7 +44,7 @@ public class PlayerStateManager {
         playerView.setVisibility(visible ? View.VISIBLE : View.GONE);
 
         if (visible) {
-            getBottomSheetCallback().onStateChanged(null, sheetBehavior.getState());
+            bottomSheetCallback.onStateChanged(null, sheetBehavior.getState());
         } else {
             sheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
         }
@@ -80,6 +82,10 @@ public class PlayerStateManager {
     }
 
     public BottomSheetBehavior.BottomSheetCallback getBottomSheetCallback() {
+        return bottomSheetCallback;
+    }
+
+    private BottomSheetBehavior.BottomSheetCallback createBottomSheetCallback() {
         return new BottomSheetBehavior.BottomSheetCallback() {
             @Override
             public void onStateChanged(@NonNull View view, int state) {

@@ -86,9 +86,6 @@ import org.greenrobot.eventbus.ThreadMode;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * The activity that is shown when the user launches the app.
- */
 public class MainActivity extends CastEnabledActivity {
 
     private static final String TAG = "MainActivity";
@@ -116,6 +113,9 @@ public class MainActivity extends CastEnabledActivity {
     private PlayerStateManager playerStateManager;
     private NavigationManager navigationManager;
     private StartupManager startupManager;
+    private IntentHandler intentHandler;
+    private KeyboardInputHandler keyboardInputHandler;
+    private WorkManagerObserver workManagerObserver;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -136,6 +136,9 @@ public class MainActivity extends CastEnabledActivity {
         playerStateManager = new PlayerStateManager(this);
         navigationManager = new NavigationManager(this);
         startupManager = new StartupManager(this);
+        intentHandler = new IntentHandler(this, navigationManager);
+        keyboardInputHandler = new KeyboardInputHandler(this);
+        workManagerObserver = new WorkManagerObserver(this);
 
         startupManager.checkFirstLaunch();
 
@@ -166,7 +169,6 @@ public class MainActivity extends CastEnabledActivity {
         }
         openDefaultPageBackPressedCallback = new OpenDefaultPageBackPressedCallback();
 
-        // Consume navigation bar insets - we apply them in setPlayerVisible()
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main_view), (v, insets) -> {
             systemBarInsets = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             playerStateManager.setSystemBarInsets(systemBarInsets);
@@ -187,9 +189,7 @@ public class MainActivity extends CastEnabledActivity {
                     try {
                         navigationManager.loadFeedFragmentById(Integer.parseInt(lastFragment), null);
                     } catch (NumberFormatException e) {
-                        // it's not a number, this happens if we removed
-                        // a label from the NAV_DRAWER_TAGS
-                        // give them a nice default...
+
                         navigationManager.loadFragment(HomeFragment.TAG, null);
                     }
                 }
@@ -210,57 +210,8 @@ public class MainActivity extends CastEnabledActivity {
 
         startupManager.initializeAppServices();
 
-        // CORREÇÃO DO WORKMANAGER - Usando LiveData corretamente
-        WorkManager.getInstance(this)
-                .getWorkInfosByTagLiveData(FeedUpdateManagerImpl.WORK_TAG_FEED_UPDATE)
-                .observe(this, workInfos -> {
-                    boolean isRefreshingFeeds = false;
-                    for (WorkInfo workInfo : workInfos) {
-                        if (workInfo.getState() == WorkInfo.State.RUNNING) {
-                            isRefreshingFeeds = true;
-                        } else if (workInfo.getState() == WorkInfo.State.ENQUEUED) {
-                            isRefreshingFeeds = true;
-                        }
-                    }
-                    EventBus.getDefault().postSticky(new FeedUpdateRunningEvent(isRefreshingFeeds));
-                });
-
-        WorkManager.getInstance(this)
-                .getWorkInfosByTagLiveData(DownloadServiceInterface.WORK_TAG)
-                .observe(this, workInfos -> {
-                    Map<String, DownloadStatus> updatedEpisodes = new HashMap<>();
-                    for (WorkInfo workInfo : workInfos) {
-                        String downloadUrl = null;
-                        for (String tag : workInfo.getTags()) {
-                            if (tag.startsWith(DownloadServiceInterface.WORK_TAG_EPISODE_URL)) {
-                                downloadUrl = tag.substring(DownloadServiceInterface.WORK_TAG_EPISODE_URL.length());
-                            }
-                        }
-                        if (downloadUrl == null) {
-                            continue;
-                        }
-                        int status;
-                        if (workInfo.getState() == WorkInfo.State.RUNNING) {
-                            status = DownloadStatus.STATE_RUNNING;
-                        } else if (workInfo.getState() == WorkInfo.State.ENQUEUED
-                                || workInfo.getState() == WorkInfo.State.BLOCKED) {
-                            status = DownloadStatus.STATE_QUEUED;
-                        } else {
-                            status = DownloadStatus.STATE_COMPLETED;
-                        }
-                        int progress = workInfo.getProgress().getInt(DownloadServiceInterface.WORK_DATA_PROGRESS, -1);
-                        if (progress == -1 && status != DownloadStatus.STATE_COMPLETED) {
-                            status = DownloadStatus.STATE_QUEUED;
-                            progress = 0;
-                        }
-                        if (updatedEpisodes.containsKey(downloadUrl) && status == DownloadStatus.STATE_COMPLETED) {
-                            continue; // In case of a duplicate, prefer running/queued over completed
-                        }
-                        updatedEpisodes.put(downloadUrl, new DownloadStatus(status, progress));
-                    }
-                    DownloadServiceInterface.get().setCurrentDownloads(updatedEpisodes);
-                    EventBus.getDefault().postSticky(new EpisodeDownloadEvent(updatedEpisodes));
-                });
+        workManagerObserver.observeFeedUpdates();
+        workManagerObserver.observeDownloads();
     }
 
     @Override
@@ -269,16 +220,10 @@ public class MainActivity extends CastEnabledActivity {
         playerStateManager.setSystemBarInsets(systemBarInsets);
     }
 
-    /**
-     * View.generateViewId stores the current ID in a static variable.
-     * When the process is killed, the variable gets reset.
-     * This makes sure that we do not get ID collisions
-     * and therefore errors when trying to restore state from another view.
-     */
     @SuppressWarnings("StatementWithEmptyBody")
     private void ensureGeneratedViewIdGreaterThan(int minimum) {
         while (View.generateViewId() <= minimum) {
-            // Generate new IDs
+
         }
     }
 
@@ -289,7 +234,7 @@ public class MainActivity extends CastEnabledActivity {
     }
 
     public void setupToolbarToggle(@NonNull MaterialToolbar toolbar, boolean displayUpArrow) {
-        if (drawerLayout != null) { // Tablet layout does not have a drawer
+        if (drawerLayout != null) {
             if (drawerManager.getDrawerToggle() != null) {
                 drawerLayout.removeDrawerListener(drawerManager.getDrawerToggle());
             }
@@ -421,7 +366,7 @@ public class MainActivity extends CastEnabledActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        lastTheme = ThemeSwitcher.getNoTitleTheme(this); // Don't recreate activity when a result is pending
+        lastTheme = ThemeSwitcher.getNoTitleTheme(this);
     }
 
     @Override
@@ -502,45 +447,8 @@ public class MainActivity extends CastEnabledActivity {
     private void handleNavIntent() {
         Log.d(TAG, "handleNavIntent()");
         Intent intent = getIntent();
-        if (intent.hasExtra(MainActivityStarter.EXTRA_FEED_ID)) {
-            long feedId = intent.getLongExtra(MainActivityStarter.EXTRA_FEED_ID, 0);
-            Bundle args = intent.getBundleExtra(MainActivityStarter.EXTRA_FRAGMENT_ARGS);
-            if (feedId > 0) {
-                if (intent.getBooleanExtra(MainActivityStarter.EXTRA_CLEAR_BACK_STACK, false)) {
-                    navigationManager.loadFeedFragmentById(feedId, args);
-                } else {
-                    navigationManager.loadChildFragment(FeedItemlistFragment.newInstance(feedId));
-                }
-            }
-            sheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
-        } else if (intent.hasExtra(MainActivityStarter.EXTRA_FRAGMENT_TAG)) {
-            String tag = intent.getStringExtra(MainActivityStarter.EXTRA_FRAGMENT_TAG);
-            Bundle args = intent.getBundleExtra(MainActivityStarter.EXTRA_FRAGMENT_ARGS);
-            if (tag != null) {
-                if (intent.getBooleanExtra(MainActivityStarter.EXTRA_CLEAR_BACK_STACK, false)) {
-                    navigationManager.loadFragment(tag, null);
-                } else {
-                    navigationManager.loadChildFragment(navigationManager.createFragmentInstance(tag, args));
-                }
-            }
-            sheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
-        } else if (intent.getBooleanExtra(MainActivityStarter.EXTRA_OPEN_PLAYER, false)) {
-            sheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
-            playerStateManager.getBottomSheetCallback().onSlide(null, 1.0f);
-        } else {
-            handleDeeplink(intent.getData());
-        }
+        intentHandler.handleNavIntent(intent);
 
-        if (intent.getBooleanExtra(MainActivityStarter.EXTRA_OPEN_DRAWER, false) && drawerLayout != null) {
-            drawerLayout.openDrawer(navDrawer);
-        }
-        if (intent.getBooleanExtra(MainActivityStarter.EXTRA_OPEN_DOWNLOAD_LOGS, false)) {
-            new DownloadLogFragment().show(getSupportFragmentManager(), null);
-        }
-        if (intent.getBooleanExtra(EXTRA_REFRESH_ON_START, false)) {
-            FeedUpdateManager.getInstance().runOnceOrAsk(this);
-        }
-        // to avoid handling the intent twice when the configuration changes
         setIntent(new Intent(MainActivity.this, MainActivity.class));
     }
 
@@ -551,109 +459,27 @@ public class MainActivity extends CastEnabledActivity {
         handleNavIntent();
     }
 
-    /**
-     * Handles the deep link incoming via App Actions.
-     * Performs an in-app search or opens the relevant feature of the app
-     * depending on the query.
-     *
-     * @param uri incoming deep link
-     */
-    private void handleDeeplink(Uri uri) {
-        if (uri == null || uri.getPath() == null) {
-            return;
-        }
-        Log.d(TAG, "Handling deeplink: " + uri.toString());
-        switch (uri.getPath()) {
-            case "/deeplink/search":
-                String query = uri.getQueryParameter("query");
-                if (query == null) {
-                    return;
-                }
-
-                this.navigationManager.loadChildFragment(SearchFragment.newInstance(query));
-                break;
-            case "/deeplink/main":
-                String feature = uri.getQueryParameter("page");
-                if (feature == null) {
-                    return;
-                }
-                switch (feature) {
-                    case "DOWNLOADS":
-                        navigationManager.loadFragment(CompletedDownloadsFragment.TAG, null);
-                        break;
-                    case "HISTORY":
-                        navigationManager.loadFragment(PlaybackHistoryFragment.TAG, null);
-                        break;
-                    case "EPISODES":
-                        navigationManager.loadFragment(AllEpisodesFragment.TAG, null);
-                        break;
-                    case "QUEUE":
-                        navigationManager.loadFragment(QueueFragment.TAG, null);
-                        break;
-                    case "SUBSCRIPTIONS":
-                        navigationManager.loadFragment(SubscriptionFragment.TAG, null);
-                        break;
-                    default:
-                        EventBus.getDefault().post(new MessageEvent(getString(R.string.app_action_not_found, feature)));
-                        return;
-                }
-                break;
-            default:
-                break;
-        }
-    }
-
-    //Hardware keyboard support
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent event) {
-        View currentFocus = getCurrentFocus();
-        if (currentFocus instanceof EditText) {
-            return super.onKeyUp(keyCode, event);
-        }
-
-        AudioManager audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
-        Integer customKeyCode = null;
-        EventBus.getDefault().post(event);
-
-        switch (keyCode) {
-            case KeyEvent.KEYCODE_P:
-                customKeyCode = KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE;
-                break;
-            case KeyEvent.KEYCODE_J: //Fallthrough
-            case KeyEvent.KEYCODE_A:
-            case KeyEvent.KEYCODE_COMMA:
-                customKeyCode = KeyEvent.KEYCODE_MEDIA_REWIND;
-                break;
-            case KeyEvent.KEYCODE_K: //Fallthrough
-            case KeyEvent.KEYCODE_D:
-            case KeyEvent.KEYCODE_PERIOD:
-                customKeyCode = KeyEvent.KEYCODE_MEDIA_FAST_FORWARD;
-                break;
-            case KeyEvent.KEYCODE_PLUS: //Fallthrough
-            case KeyEvent.KEYCODE_W:
-                audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC,
-                        AudioManager.ADJUST_RAISE, AudioManager.FLAG_SHOW_UI);
-                return true;
-            case KeyEvent.KEYCODE_MINUS: //Fallthrough
-            case KeyEvent.KEYCODE_S:
-                audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC,
-                        AudioManager.ADJUST_LOWER, AudioManager.FLAG_SHOW_UI);
-                return true;
-            case KeyEvent.KEYCODE_M:
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC,
-                            AudioManager.ADJUST_TOGGLE_MUTE, AudioManager.FLAG_SHOW_UI);
-                    return true;
-                }
-                break;
-            default:
-                break;
-        }
-
-        if (customKeyCode != null) {
-            sendBroadcast(MediaButtonStarter.createIntent(this, customKeyCode));
-            return true;
-        }
-        return super.onKeyUp(keyCode, event);
+        return keyboardInputHandler.handleKeyUp(keyCode, event) || super.onKeyUp(keyCode, event);
     }
+
+    public DrawerManager getDrawerManager() {
+        return drawerManager;
+    }
+
+    public PlayerStateManager getPlayerStateManager() {
+        return playerStateManager;
+    }
+
+    public boolean isDrawerAvailable() {
+        return drawerLayout != null && bottomNavigation == null;
+    }
+
+    public void openDrawer() {
+        if (drawerLayout != null) {
+            drawerLayout.openDrawer(navDrawer);
+        }
+    }
+
 }
