@@ -33,7 +33,7 @@ public class StartDownloadSwipeAction implements SwipeAction {
     public void performAction(FeedItem item, Fragment fragment, FeedItemFilter filter) {
         if (!item.isDownloaded() && !item.getFeed().isLocalFeed()) {
             new DownloadActionButton(item)
-                    .onClick(fragment.requireContext());
+                    .performClick(fragment.requireContext());
         }
     }
 
