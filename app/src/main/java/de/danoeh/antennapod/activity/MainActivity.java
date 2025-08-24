@@ -104,12 +104,18 @@ public class MainActivity extends CastEnabledActivity {
     private @Nullable ActionBarDrawerToggle drawerToggle;
     private BottomNavigation bottomNavigation;
     private View navDrawer;
-    private LockableBottomSheetBehavior sheetBehavior;
+    private LockableBottomSheetBehavior<View> sheetBehavior;
     private BottomSheetBackPressedCallback bottomSheetBackPressedCallback;
     private OnBackPressedCallback openDefaultPageBackPressedCallback;
     private RecyclerView.RecycledViewPool recycledViewPool = new RecyclerView.RecycledViewPool();
     private int lastTheme = 0;
     private Insets systemBarInsets = Insets.NONE;
+
+    // Managers
+    private DrawerManager drawerManager;
+    private PlayerStateManager playerStateManager;
+    private NavigationManager navigationManager;
+    private StartupManager startupManager;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -122,10 +128,19 @@ public class MainActivity extends CastEnabledActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
         recycledViewPool.setMaxRecycledViews(R.id.view_type_episode_item, 25);
-        checkFirstLaunch();
 
+        // Initialize managers
         drawerLayout = findViewById(R.id.drawer_layout);
         navDrawer = findViewById(R.id.navDrawerFragment);
+        drawerManager = new DrawerManager(this, drawerLayout, navDrawer);
+        playerStateManager = new PlayerStateManager(this);
+        navigationManager = new NavigationManager(this);
+        startupManager = new StartupManager(this);
+
+        startupManager.checkFirstLaunch();
+
+        drawerManager.setupDrawer();
+
         bottomNavigation = new BottomNavigation(findViewById(R.id.bottomNavigationView)) {
             @Override
             public void onItemSelected(@IdRes int itemId) {
@@ -134,7 +149,7 @@ public class MainActivity extends CastEnabledActivity {
                     startActivity(new Intent(MainActivity.this, PreferenceActivity.class));
                     return;
                 }
-                loadFragment(NavigationNames.getBottomNavigationFragmentTag(itemId), null);
+                navigationManager.loadFragment(NavigationNames.getBottomNavigationFragmentTag(itemId), null);
             }
         };
         if (UserPreferences.isBottomNavigationEnabled()) {
@@ -148,14 +163,13 @@ public class MainActivity extends CastEnabledActivity {
         } else {
             bottomNavigation.hide();
             bottomNavigation = null;
-            setNavDrawerSize();
         }
         openDefaultPageBackPressedCallback = new OpenDefaultPageBackPressedCallback();
 
         // Consume navigation bar insets - we apply them in setPlayerVisible()
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main_view), (v, insets) -> {
             systemBarInsets = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            updateInsets();
+            playerStateManager.setSystemBarInsets(systemBarInsets);
             return new WindowInsetsCompat.Builder(insets)
                     .setInsets(WindowInsetsCompat.Type.navigationBars(), Insets.NONE)
                     .build();
@@ -164,19 +178,19 @@ public class MainActivity extends CastEnabledActivity {
         final FragmentManager fm = getSupportFragmentManager();
         if (fm.findFragmentByTag(MAIN_FRAGMENT_TAG) == null) {
             if (!UserPreferences.DEFAULT_PAGE_REMEMBER.equals(UserPreferences.getDefaultPage())) {
-                loadFragment(UserPreferences.getDefaultPage(), null);
+                navigationManager.loadFragment(UserPreferences.getDefaultPage(), null);
             } else {
                 String lastFragment = NavDrawerFragment.getLastNavFragment(this);
                 if (ArrayUtils.contains(getResources().getStringArray(R.array.nav_drawer_section_tags), lastFragment)) {
-                    loadFragment(lastFragment, null);
+                    navigationManager.loadFragment(lastFragment, null);
                 } else {
                     try {
-                        loadFeedFragmentById(Integer.parseInt(lastFragment), null);
+                        navigationManager.loadFeedFragmentById(Integer.parseInt(lastFragment), null);
                     } catch (NumberFormatException e) {
                         // it's not a number, this happens if we removed
                         // a label from the NAV_DRAWER_TAGS
                         // give them a nice default...
-                        loadFragment(HomeFragment.TAG, null);
+                        navigationManager.loadFragment(HomeFragment.TAG, null);
                     }
                 }
             }
@@ -190,15 +204,13 @@ public class MainActivity extends CastEnabledActivity {
         transaction.commit();
 
         View bottomSheet = findViewById(R.id.audioplayerFragment);
-        sheetBehavior = (LockableBottomSheetBehavior) BottomSheetBehavior.from(bottomSheet);
-        sheetBehavior.setHideable(false);
-        sheetBehavior.setBottomSheetCallback(bottomSheetCallback);
+        playerStateManager.initialize(bottomSheet);
+        sheetBehavior = playerStateManager.getBottomSheet();
         bottomSheetBackPressedCallback = new BottomSheetBackPressedCallback(false, sheetBehavior, bottomSheet);
 
-        FeedUpdateManager.getInstance().restartUpdateAlarm(this, false);
-        SynchronizationQueue.getInstance().syncIfNotSyncedRecently();
-        AutomaticDatabaseExportWorker.enqueueIfNeeded(this, false);
+        startupManager.initializeAppServices();
 
+        // CORREÇÃO DO WORKMANAGER - Usando LiveData corretamente
         WorkManager.getInstance(this)
                 .getWorkInfosByTagLiveData(FeedUpdateManagerImpl.WORK_TAG_FEED_UPDATE)
                 .observe(this, workInfos -> {
@@ -212,6 +224,7 @@ public class MainActivity extends CastEnabledActivity {
                     }
                     EventBus.getDefault().postSticky(new FeedUpdateRunningEvent(isRefreshingFeeds));
                 });
+
         WorkManager.getInstance(this)
                 .getWorkInfosByTagLiveData(DownloadServiceInterface.WORK_TAG)
                 .observe(this, workInfos -> {
@@ -253,7 +266,7 @@ public class MainActivity extends CastEnabledActivity {
     @Override
     public void onAttachedToWindow() {
         super.onAttachedToWindow();
-        updateInsets();
+        playerStateManager.setSystemBarInsets(systemBarInsets);
     }
 
     /**
@@ -275,53 +288,18 @@ public class MainActivity extends CastEnabledActivity {
         outState.putInt(KEY_GENERATED_VIEW_ID, View.generateViewId());
     }
 
-    private final BottomSheetBehavior.BottomSheetCallback bottomSheetCallback = new AntennaPodBottomSheetCallback();
-
-    private class AntennaPodBottomSheetCallback extends BottomSheetBehavior.BottomSheetCallback {
-        @Override
-        public void onStateChanged(@NonNull View view, int state) {
-            if (state == BottomSheetBehavior.STATE_COLLAPSED) {
-                onSlide(view, 0.0f);
-                bottomSheetBackPressedCallback.setEnabled(false);
-            } else if (state == BottomSheetBehavior.STATE_EXPANDED) {
-                onSlide(view, 1.0f);
-                bottomSheetBackPressedCallback.setEnabled(true);
-            } else if (state == BottomSheetBehavior.STATE_HIDDEN) {
-                IntentUtils.sendLocalBroadcast(MainActivity.this,
-                        PlaybackServiceInterface.ACTION_SHUTDOWN_PLAYBACK_SERVICE);
-                PlaybackPreferences.writeNoMediaPlaying();
-                setPlayerVisible(false);
-                bottomSheetBackPressedCallback.setEnabled(false);
-            }
-        }
-
-        @Override
-        public void onSlide(@NonNull View view, float slideOffset) {
-            AudioPlayerFragment audioPlayer = (AudioPlayerFragment) getSupportFragmentManager()
-                    .findFragmentByTag(AudioPlayerFragment.TAG);
-            if (audioPlayer == null) {
-                return;
-            }
-
-            if (slideOffset == 0.0f) { //STATE_COLLAPSED
-                audioPlayer.scrollToPage(AudioPlayerFragment.POS_COVER);
-            }
-
-            audioPlayer.fadePlayerToToolbar(slideOffset);
-        }
-    }
-
     public void setupToolbarToggle(@NonNull MaterialToolbar toolbar, boolean displayUpArrow) {
         if (drawerLayout != null) { // Tablet layout does not have a drawer
-            if (drawerToggle != null) {
-                drawerLayout.removeDrawerListener(drawerToggle);
+            if (drawerManager.getDrawerToggle() != null) {
+                drawerLayout.removeDrawerListener(drawerManager.getDrawerToggle());
             }
-            drawerToggle = new ActionBarDrawerToggle(this, drawerLayout, toolbar,
+            ActionBarDrawerToggle drawerToggle = new ActionBarDrawerToggle(this, drawerLayout, toolbar,
                     R.string.drawer_open, R.string.drawer_close);
             drawerLayout.addDrawerListener(drawerToggle);
             drawerToggle.syncState();
             drawerToggle.setDrawerIndicatorEnabled(!displayUpArrow);
             drawerToggle.setToolbarNavigationClickListener(v -> getSupportFragmentManager().popBackStack());
+            drawerManager.setDrawerToggle(drawerToggle);
         } else if (!displayUpArrow) {
             toolbar.setNavigationIcon(null);
         } else {
@@ -333,66 +311,22 @@ public class MainActivity extends CastEnabledActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (drawerLayout != null && drawerToggle != null) {
-            drawerLayout.removeDrawerListener(drawerToggle);
-        }
+        drawerManager.removeDrawerListener();
         if (bottomNavigation != null) {
             bottomNavigation.onDestroy();
         }
     }
 
-    private void checkFirstLaunch() {
-        SharedPreferences prefs = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
-        if (prefs.getBoolean(PREF_IS_FIRST_LAUNCH, true)) {
-            FeedUpdateManager.getInstance().restartUpdateAlarm(this, true);
-            UserPreferences.setBottomNavigationEnabled(true);
-
-            SharedPreferences.Editor edit = prefs.edit();
-            edit.putBoolean(PREF_IS_FIRST_LAUNCH, false);
-            edit.apply();
-        }
-    }
-
     public boolean isDrawerOpen() {
-        return drawerLayout != null && navDrawer != null && drawerLayout.isDrawerOpen(navDrawer);
+        return drawerManager.isDrawerOpen();
     }
 
-    public LockableBottomSheetBehavior getBottomSheet() {
+    public LockableBottomSheetBehavior<View> getBottomSheet() {
         return sheetBehavior;
     }
 
-    private void updateInsets() {
-        setPlayerVisible(findViewById(R.id.audioplayerFragment).getVisibility() == View.VISIBLE);
-    }
-
     public void setPlayerVisible(boolean visible) {
-        getBottomSheet().setLocked(!visible);
-        findViewById(R.id.audioplayerFragment).setVisibility(visible ? View.VISIBLE : View.GONE);
-        if (visible) {
-            bottomSheetCallback.onStateChanged(null, getBottomSheet().getState()); // Update toolbar visibility
-        } else {
-            getBottomSheet().setState(BottomSheetBehavior.STATE_COLLAPSED);
-        }
-        View bottomPaddingView = findViewById(R.id.bottom_padding);
-        ViewGroup.MarginLayoutParams params = (ViewGroup.MarginLayoutParams) bottomPaddingView.getLayoutParams();
-        params.height = systemBarInsets.bottom;
-        bottomPaddingView.setLayoutParams(params);
-
-        int externalPlayerHeight = (int) getResources().getDimension(R.dimen.external_player_height);
-        FragmentContainerView mainView = findViewById(R.id.main_content_view);
-        params = (ViewGroup.MarginLayoutParams) mainView.getLayoutParams();
-        params.setMargins(systemBarInsets.left, 0, systemBarInsets.right, (visible ? externalPlayerHeight : 0));
-        mainView.setLayoutParams(params);
-        sheetBehavior.setPeekHeight(externalPlayerHeight);
-        sheetBehavior.setHideable(true);
-        sheetBehavior.setGestureInsetBottomIgnored(true);
-
-        FragmentContainerView playerView = findViewById(R.id.playerFragment);
-        ViewGroup.MarginLayoutParams playerParams = (ViewGroup.MarginLayoutParams) playerView.getLayoutParams();
-        playerParams.setMargins(systemBarInsets.left, 0, systemBarInsets.right, 0);
-        playerView.setLayoutParams(playerParams);
-        RelativeLayout playerContent = findViewById(R.id.playerContent);
-        playerContent.setPadding(systemBarInsets.left, systemBarInsets.top, systemBarInsets.right, 0);
+        playerStateManager.setPlayerVisible(visible);
     }
 
     public RecyclerView.RecycledViewPool getRecycledViewPool() {
@@ -400,118 +334,36 @@ public class MainActivity extends CastEnabledActivity {
     }
 
     public Fragment createFragmentInstance(String tag, Bundle args) {
-        Log.d(TAG, "loadFragment(tag: " + tag + ", args: " + args + ")");
-        Fragment fragment;
-        switch (tag) {
-            case HomeFragment.TAG:
-                fragment = new HomeFragment();
-                break;
-            case QueueFragment.TAG:
-                fragment = new QueueFragment();
-                break;
-            case InboxFragment.TAG:
-                fragment = new InboxFragment();
-                break;
-            case AllEpisodesFragment.TAG:
-                fragment = new AllEpisodesFragment();
-                break;
-            case CompletedDownloadsFragment.TAG:
-                fragment = new CompletedDownloadsFragment();
-                break;
-            case PlaybackHistoryFragment.TAG:
-                fragment = new PlaybackHistoryFragment();
-                break;
-            case AddFeedFragment.TAG:
-                fragment = new AddFeedFragment();
-                break;
-            case SubscriptionFragment.TAG:
-                fragment = new SubscriptionFragment();
-                break;
-            case DiscoveryFragment.TAG:
-                fragment = new DiscoveryFragment();
-                break;
-            default:
-                // default to home screen
-                fragment = new HomeFragment();
-                args = null;
-                break;
-        }
-        if (args != null) {
-            fragment.setArguments(args);
-        }
-        return fragment;
+        return navigationManager.createFragmentInstance(tag, args);
     }
 
     public void loadFragment(String tag, Bundle args) {
-        NavDrawerFragment.saveLastNavFragment(this, tag);
-        if (bottomNavigation != null) {
-            bottomNavigation.updateSelectedItem(tag);
-        }
-        loadFragment(createFragmentInstance(tag, args));
+        navigationManager.loadFragment(tag, args);
+        drawerManager.closeDrawer();
     }
 
     public void loadFeedFragmentById(long feedId, Bundle args) {
-        Fragment fragment = FeedItemlistFragment.newInstance(feedId);
-        if (args != null) {
-            fragment.setArguments(args);
-        }
-        NavDrawerFragment.saveLastNavFragment(this, String.valueOf(feedId));
-        loadFragment(fragment);
+        navigationManager.loadFeedFragmentById(feedId, args);
+        drawerManager.closeDrawer();
     }
 
     public void loadFragment(Fragment fragment) {
-        FragmentManager fragmentManager = getSupportFragmentManager();
-        // clear back stack
-        for (int i = 0; i < fragmentManager.getBackStackEntryCount(); i++) {
-            fragmentManager.popBackStack();
-        }
-        FragmentTransaction t = fragmentManager.beginTransaction();
-        t.replace(R.id.main_content_view, fragment, MAIN_FRAGMENT_TAG);
-        fragmentManager.popBackStack();
-        // TODO: we have to allow state loss here
-        // since this function can get called from an AsyncTask which
-        // could be finishing after our app has already committed state
-        // and is about to get shutdown.  What we *should* do is
-        // not commit anything in an AsyncTask, but that's a bigger
-        // change than we want now.
-        t.commitAllowingStateLoss();
-
-        if (drawerLayout != null) { // Tablet layout does not have a drawer
-            drawerLayout.closeDrawer(navDrawer);
-        }
+        navigationManager.loadFragment(fragment);
+        drawerManager.closeDrawer();
     }
 
     public void loadChildFragment(Fragment fragment, TransitionEffect transition) {
-        Validate.notNull(fragment);
-        FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
-
-        if (transition == TransitionEffect.FADE) {
-            transaction.setCustomAnimations(R.anim.fade_in, R.anim.fade_out);
-        } else if (transition == TransitionEffect.SLIDE) {
-            transaction.setCustomAnimations(
-                    R.anim.slide_right_in,
-                    R.anim.slide_left_out,
-                    R.anim.slide_left_in,
-                    R.anim.slide_right_out);
-        }
-
-        transaction
-                .hide(getSupportFragmentManager().findFragmentByTag(MAIN_FRAGMENT_TAG))
-                .add(R.id.main_content_view, fragment, MAIN_FRAGMENT_TAG)
-                .addToBackStack(null)
-                .commit();
+        navigationManager.loadChildFragment(fragment, transition);
     }
 
     public void loadChildFragment(Fragment fragment) {
-        loadChildFragment(fragment, TransitionEffect.NONE);
+        navigationManager.loadChildFragment(fragment);
     }
 
     @Override
     protected void onPostCreate(Bundle savedInstanceState) {
         super.onPostCreate(savedInstanceState);
-        if (drawerToggle != null) { // Tablet layout does not have a drawer
-            drawerToggle.syncState();
-        }
+        drawerManager.syncState();
     }
 
     private void restartActivity() {
@@ -522,10 +374,7 @@ public class MainActivity extends CastEnabledActivity {
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
-        if (drawerToggle != null) { // Tablet layout does not have a drawer
-            drawerToggle.onConfigurationChanged(newConfig);
-        }
-        setNavDrawerSize();
+        drawerManager.onConfigurationChanged(newConfig);
 
         @StyleRes int requiredTheme = ThemeSwitcher.getNoTitleTheme(this);
         if (requiredTheme != lastTheme) {
@@ -533,29 +382,12 @@ public class MainActivity extends CastEnabledActivity {
         }
     }
 
-    private void setNavDrawerSize() {
-        if (drawerToggle == null) { // Tablet layout does not have a drawer
-            return;
-        }
-        float screenPercent = getResources().getInteger(R.integer.nav_drawer_screen_size_percent) * 0.01f;
-        int width = (int) (getScreenWidth() * screenPercent);
-        int maxWidth = (int) getResources().getDimension(R.dimen.nav_drawer_max_screen_size);
-
-        navDrawer.getLayoutParams().width = Math.min(width, maxWidth);
-    }
-
-    private int getScreenWidth() {
-        DisplayMetrics displayMetrics = new DisplayMetrics();
-        getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
-        return displayMetrics.widthPixels;
-    }
-
     @Override
     protected void onRestoreInstanceState(Bundle savedInstanceState) {
         super.onRestoreInstanceState(savedInstanceState);
 
         if (getBottomSheet().getState() == BottomSheetBehavior.STATE_EXPANDED) {
-            bottomSheetCallback.onSlide(null, 1.0f);
+            playerStateManager.getBottomSheetCallback().onSlide(null, 1.0f);
         }
     }
 
@@ -582,7 +414,7 @@ public class MainActivity extends CastEnabledActivity {
             restartActivity();
         }
         if (UserPreferences.getHiddenDrawerItems().contains(NavDrawerFragment.getLastNavFragment(this))) {
-            loadFragment(UserPreferences.getDefaultPage(), null);
+            navigationManager.loadFragment(UserPreferences.getDefaultPage(), null);
         }
     }
 
@@ -615,7 +447,7 @@ public class MainActivity extends CastEnabledActivity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        if (drawerToggle != null && drawerToggle.onOptionsItemSelected(item)) { // Tablet layout does not have a drawer
+        if (drawerManager.getDrawerToggle() != null && drawerManager.getDrawerToggle().onOptionsItemSelected(item)) {
             return true;
         } else if (item.getItemId() == android.R.id.home) {
             if (getSupportFragmentManager().getBackStackEntryCount() > 0) {
@@ -639,7 +471,7 @@ public class MainActivity extends CastEnabledActivity {
                 getSupportFragmentManager().popBackStack();
             } else if (!NavDrawerFragment.getLastNavFragment(MainActivity.this).equals(defaultPage)
                     && !UserPreferences.DEFAULT_PAGE_REMEMBER.equals(defaultPage)) {
-                loadFragment(defaultPage, null);
+                navigationManager.loadFragment(defaultPage, null);
             } else if (UserPreferences.backButtonOpensDrawer() && drawerLayout != null && bottomNavigation == null) {
                 drawerLayout.openDrawer(navDrawer);
             } else {
@@ -675,9 +507,9 @@ public class MainActivity extends CastEnabledActivity {
             Bundle args = intent.getBundleExtra(MainActivityStarter.EXTRA_FRAGMENT_ARGS);
             if (feedId > 0) {
                 if (intent.getBooleanExtra(MainActivityStarter.EXTRA_CLEAR_BACK_STACK, false)) {
-                    loadFeedFragmentById(feedId, args);
+                    navigationManager.loadFeedFragmentById(feedId, args);
                 } else {
-                    loadChildFragment(FeedItemlistFragment.newInstance(feedId));
+                    navigationManager.loadChildFragment(FeedItemlistFragment.newInstance(feedId));
                 }
             }
             sheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
@@ -686,21 +518,21 @@ public class MainActivity extends CastEnabledActivity {
             Bundle args = intent.getBundleExtra(MainActivityStarter.EXTRA_FRAGMENT_ARGS);
             if (tag != null) {
                 if (intent.getBooleanExtra(MainActivityStarter.EXTRA_CLEAR_BACK_STACK, false)) {
-                    loadFragment(tag, null);
+                    navigationManager.loadFragment(tag, null);
                 } else {
-                    loadChildFragment(createFragmentInstance(tag, args));
+                    navigationManager.loadChildFragment(navigationManager.createFragmentInstance(tag, args));
                 }
             }
             sheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
         } else if (intent.getBooleanExtra(MainActivityStarter.EXTRA_OPEN_PLAYER, false)) {
             sheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
-            bottomSheetCallback.onSlide(null, 1.0f);
+            playerStateManager.getBottomSheetCallback().onSlide(null, 1.0f);
         } else {
             handleDeeplink(intent.getData());
         }
 
         if (intent.getBooleanExtra(MainActivityStarter.EXTRA_OPEN_DRAWER, false) && drawerLayout != null) {
-            drawerLayout.open();
+            drawerLayout.openDrawer(navDrawer);
         }
         if (intent.getBooleanExtra(MainActivityStarter.EXTRA_OPEN_DOWNLOAD_LOGS, false)) {
             new DownloadLogFragment().show(getSupportFragmentManager(), null);
@@ -738,7 +570,7 @@ public class MainActivity extends CastEnabledActivity {
                     return;
                 }
 
-                this.loadChildFragment(SearchFragment.newInstance(query));
+                this.navigationManager.loadChildFragment(SearchFragment.newInstance(query));
                 break;
             case "/deeplink/main":
                 String feature = uri.getQueryParameter("page");
@@ -747,19 +579,19 @@ public class MainActivity extends CastEnabledActivity {
                 }
                 switch (feature) {
                     case "DOWNLOADS":
-                        loadFragment(CompletedDownloadsFragment.TAG, null);
+                        navigationManager.loadFragment(CompletedDownloadsFragment.TAG, null);
                         break;
                     case "HISTORY":
-                        loadFragment(PlaybackHistoryFragment.TAG, null);
+                        navigationManager.loadFragment(PlaybackHistoryFragment.TAG, null);
                         break;
                     case "EPISODES":
-                        loadFragment(AllEpisodesFragment.TAG, null);
+                        navigationManager.loadFragment(AllEpisodesFragment.TAG, null);
                         break;
                     case "QUEUE":
-                        loadFragment(QueueFragment.TAG, null);
+                        navigationManager.loadFragment(QueueFragment.TAG, null);
                         break;
                     case "SUBSCRIPTIONS":
-                        loadFragment(SubscriptionFragment.TAG, null);
+                        navigationManager.loadFragment(SubscriptionFragment.TAG, null);
                         break;
                     default:
                         EventBus.getDefault().post(new MessageEvent(getString(R.string.app_action_not_found, feature)));
@@ -770,7 +602,7 @@ public class MainActivity extends CastEnabledActivity {
                 break;
         }
     }
-  
+
     //Hardware keyboard support
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent event) {
