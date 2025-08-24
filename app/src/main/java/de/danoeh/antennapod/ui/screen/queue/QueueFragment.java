@@ -99,7 +99,7 @@ public class QueueFragment extends Fragment implements MaterialToolbar.OnMenuIte
 
     private Disposable disposable;
     private SwipeActions swipeActions;
-    private SharedPreferences prefs;
+    private SharedPreferences sharedPreferences;
 
     private FloatingSelectMenu floatingSelectMenu;
     private ProgressBar progressBar;
@@ -107,7 +107,7 @@ public class QueueFragment extends Fragment implements MaterialToolbar.OnMenuIte
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        prefs = getActivity().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        sharedPreferences = getActivity().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
 
     @Override
@@ -121,7 +121,7 @@ public class QueueFragment extends Fragment implements MaterialToolbar.OnMenuIte
     public void onPause() {
         super.onPause();
         Pair<Integer, Integer> scrollPosition = recyclerView.getScrollPosition();
-        prefs.edit().putInt(SCROLL_POSITION_KEY, scrollPosition.first)
+        sharedPreferences.edit().putInt(SCROLL_POSITION_KEY, scrollPosition.first)
                 .putInt(SCROLL_OFFSET_KEY, scrollPosition.second).apply();
     }
 
@@ -323,7 +323,7 @@ public class QueueFragment extends Fragment implements MaterialToolbar.OnMenuIte
         if (isLocked) {
             setQueueLocked(false);
         } else {
-            boolean shouldShowLockWarning = prefs.getBoolean(PREF_SHOW_LOCK_WARNING, true);
+            boolean shouldShowLockWarning = sharedPreferences.getBoolean(PREF_SHOW_LOCK_WARNING, true);
             if (!shouldShowLockWarning) {
                 setQueueLocked(true);
             } else {
@@ -336,7 +336,7 @@ public class QueueFragment extends Fragment implements MaterialToolbar.OnMenuIte
                 builder.setView(view);
 
                 builder.setPositiveButton(R.string.lock_queue, (dialog, which) -> {
-                    prefs.edit().putBoolean(PREF_SHOW_LOCK_WARNING, !checkDoNotShowAgain.isChecked()).apply();
+                    sharedPreferences.edit().putBoolean(PREF_SHOW_LOCK_WARNING, !checkDoNotShowAgain.isChecked()).apply();
                     setQueueLocked(true);
                 });
                 builder.setNegativeButton(R.string.cancel_label, null);
@@ -550,7 +550,7 @@ public class QueueFragment extends Fragment implements MaterialToolbar.OnMenuIte
                     recyclerAdapter.updateItems(queue);
                     if (restoreScrollPosition) {
                         Pair<Integer, Integer> scrollPosition = new Pair<>(
-                                prefs.getInt(SCROLL_POSITION_KEY, 0), prefs.getInt(SCROLL_OFFSET_KEY, 0));
+                                sharedPreferences.getInt(SCROLL_POSITION_KEY, 0), sharedPreferences.getInt(SCROLL_OFFSET_KEY, 0));
                         recyclerView.restoreScrollPosition(scrollPosition);
                     }
                     refreshInfoBar();
