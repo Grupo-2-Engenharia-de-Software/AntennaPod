@@ -118,6 +118,8 @@ dependencies {
     implementation project(':playback:service')
     implementation project(':ui:chapters')
     implementation project(':ui:transcript')
+    implementation 'io.reactivex.rxjava2:rxjava:2.2.21'
+    implementation 'io.reactivex.rxjava2:rxandroid:2.1.1'
 
     annotationProcessor "androidx.annotation:annotation:$annotationVersion"
     implementation "androidx.appcompat:appcompat:$appcompatVersion"
