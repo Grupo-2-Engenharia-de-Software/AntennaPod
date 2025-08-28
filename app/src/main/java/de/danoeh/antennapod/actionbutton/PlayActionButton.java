@@ -24,18 +24,18 @@ public class PlayActionButton extends ItemActionButton {
 
     @Override
     @StringRes
-    public int getLabel() {
+    protected int getLabel() {
         return R.string.play_label;
     }
 
     @Override
     @DrawableRes
-    public int getDrawable() {
+    protected int getDrawable() {
         return R.drawable.ic_play_24dp;
     }
 
     @Override
-    public void onClick(Context context) {
+    protected void onClick(Context context) {
         FeedMedia media = item.getMedia();
         if (media == null) {
             return;

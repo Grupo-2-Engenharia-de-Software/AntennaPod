@@ -23,18 +23,18 @@ public class StreamActionButton extends ItemActionButton {
 
     @Override
     @StringRes
-    public int getLabel() {
+    protected int getLabel() {
         return R.string.stream_label;
     }
 
     @Override
     @DrawableRes
-    public int getDrawable() {
+    protected int getDrawable() {
         return R.drawable.ic_stream;
     }
 
     @Override
-    public void onClick(Context context) {
+    protected void onClick(Context context) {
         final FeedMedia media = item.getMedia();
         if (media == null) {
             return;

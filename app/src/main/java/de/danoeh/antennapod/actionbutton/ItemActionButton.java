@@ -6,6 +6,7 @@ import androidx.annotation.DrawableRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.StringRes;
 import android.view.View;
+import android.widget.TextView;
 
 import de.danoeh.antennapod.playback.service.PlaybackStatus;
 import de.danoeh.antennapod.model.feed.FeedItem;
@@ -21,14 +22,14 @@ public abstract class ItemActionButton {
     }
 
     @StringRes
-    public abstract int getLabel();
+    protected abstract int getLabel();
 
     @DrawableRes
-    public abstract int getDrawable();
+    protected abstract int getDrawable();
 
-    public abstract void onClick(Context context);
+    protected abstract void onClick(Context context);
 
-    public int getVisibility() {
+    protected int getVisibility() {
         return View.VISIBLE;
     }
 
@@ -60,5 +61,16 @@ public abstract class ItemActionButton {
         button.setContentDescription(context.getString(getLabel()));
         button.setOnClickListener((view) -> onClick(context));
         icon.setImageResource(getDrawable());
+    }
+
+    public void copyIntoViews(TextView textView, ImageView imageView, View view) {
+        textView.setText(this.getLabel());
+        textView.setTransformationMethod(null);
+        imageView.setImageResource(this.getDrawable());
+        view.setVisibility(this.getVisibility());
+    }
+
+    public void performClick(Context context) {
+        onClick(context);
     }
 }

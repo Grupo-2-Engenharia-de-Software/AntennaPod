@@ -231,7 +231,7 @@ public class MainActivity extends CastEnabledActivity {
         }
     }
 
-    public boolean isDrawerOpen() {
+    private boolean isDrawerOpen() {
         return drawerManager.isDrawerOpen();
     }
 
@@ -247,7 +247,7 @@ public class MainActivity extends CastEnabledActivity {
         return recycledViewPool;
     }
 
-    public Fragment createFragmentInstance(String tag, Bundle args) {
+    private Fragment createFragmentInstance(String tag, Bundle args) {
         return navigationManager.createFragmentInstance(tag, args);
     }
 
@@ -261,7 +261,7 @@ public class MainActivity extends CastEnabledActivity {
         drawerManager.closeDrawer();
     }
 
-    public void loadFragment(Fragment fragment) {
+    private void loadFragment(Fragment fragment) {
         navigationManager.loadFragment(fragment);
         drawerManager.closeDrawer();
     }

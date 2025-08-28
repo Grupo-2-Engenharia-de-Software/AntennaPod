@@ -103,7 +103,7 @@ public class SleepTimerDialog extends DialogFragment {
             }
         });
 
-        etxtTime.setText(SleepTimerPreferences.lastTimerValue());
+        etxtTime.setText(String.valueOf(SleepTimerPreferences.lastTimerValue()));
         etxtTime.postDelayed(() -> {
             InputMethodManager imm = (InputMethodManager) getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
             imm.showSoftInput(etxtTime, InputMethodManager.SHOW_IMPLICIT);
@@ -156,7 +156,7 @@ public class SleepTimerDialog extends DialogFragment {
                 if (time == 0) {
                     throw new NumberFormatException("Timer must not be zero");
                 }
-                SleepTimerPreferences.setLastTimer(etxtTime.getText().toString());
+                SleepTimerPreferences.setLastTimer(time);
                 if (controller != null) {
                     controller.setSleepTimer(SleepTimerPreferences.timerMillis());
                 }

@@ -18,18 +18,18 @@ public class PauseActionButton extends ItemActionButton {
 
     @Override
     @StringRes
-    public int getLabel() {
+    protected int getLabel() {
         return R.string.pause_label;
     }
 
     @Override
     @DrawableRes
-    public int getDrawable() {
+    protected int getDrawable() {
         return R.drawable.ic_pause;
     }
 
     @Override
-    public void onClick(Context context) {
+    protected void onClick(Context context) {
         FeedMedia media = item.getMedia();
         if (media == null) {
             return;
