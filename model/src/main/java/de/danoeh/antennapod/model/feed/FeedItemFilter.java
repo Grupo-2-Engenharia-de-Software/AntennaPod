@@ -2,11 +2,14 @@ package de.danoeh.antennapod.model.feed;
 
 import android.text.TextUtils;
 
+import android.os.Build;
+import android.os.Parcel;
+import android.os.Parcelable;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 
-public class FeedItemFilter implements Serializable {
+public class FeedItemFilter implements Serializable, Parcelable {
 
     private final String[] properties;
 
@@ -125,4 +128,64 @@ public class FeedItemFilter implements Serializable {
         }
         return true;
     }
+
+    // Implementação de Parcelable
+    
+    protected FeedItemFilter(Parcel in) {
+        properties = in.createStringArray();
+
+        showPlayed = in.readByte() != 0;
+        showUnplayed = in.readByte() != 0;
+        showPaused = in.readByte() != 0;
+        showNotPaused = in.readByte() != 0;
+        showNew = in.readByte() != 0;
+        showQueued = in.readByte() != 0;
+        showNotQueued = in.readByte() != 0;
+        showDownloaded = in.readByte() != 0;
+        showNotDownloaded = in.readByte() != 0;
+        showHasMedia = in.readByte() != 0;
+        showNoMedia = in.readByte() != 0;
+        showIsFavorite = in.readByte() != 0;
+        showNotFavorite = in.readByte() != 0;
+        showInHistory = in.readByte() != 0;
+        includeNotSubscribed = in.readByte() != 0;
+    }
+
+    @Override
+    public void writeToParcel(Parcel dest, int flags) {
+        dest.writeStringArray(properties);
+
+        dest.writeByte((byte) (showPlayed ? 1 : 0));
+        dest.writeByte((byte) (showUnplayed ? 1 : 0));
+        dest.writeByte((byte) (showPaused ? 1 : 0));
+        dest.writeByte((byte) (showNotPaused ? 1 : 0));
+        dest.writeByte((byte) (showNew ? 1 : 0));
+        dest.writeByte((byte) (showQueued ? 1 : 0));
+        dest.writeByte((byte) (showNotQueued ? 1 : 0));
+        dest.writeByte((byte) (showDownloaded ? 1 : 0));
+        dest.writeByte((byte) (showNotDownloaded ? 1 : 0));
+        dest.writeByte((byte) (showHasMedia ? 1 : 0));
+        dest.writeByte((byte) (showNoMedia ? 1 : 0));
+        dest.writeByte((byte) (showIsFavorite ? 1 : 0));
+        dest.writeByte((byte) (showNotFavorite ? 1 : 0));
+        dest.writeByte((byte) (showInHistory ? 1 : 0));
+        dest.writeByte((byte) (includeNotSubscribed ? 1 : 0));
+    }
+
+    @Override
+    public int describeContents() {
+        return 0;
+    }
+
+    public static final Creator<FeedItemFilter> CREATOR = new Creator<FeedItemFilter>() {
+        @Override
+        public FeedItemFilter createFromParcel(Parcel in) {
+            return new FeedItemFilter(in);
+        }
+
+        @Override
+        public FeedItemFilter[] newArray(int size) {
+            return new FeedItemFilter[size];
+        }
+    };
 }
