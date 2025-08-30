@@ -22,34 +22,38 @@ import com.bumptech.glide.request.target.Target;
 
 import java.util.ArrayList;
 import java.util.List;
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.MutableLiveData;
 
 import de.danoeh.antennapod.R;
 import de.danoeh.antennapod.ui.appstartintent.MainActivityStarter;
 import de.danoeh.antennapod.ui.common.ThemeSwitcher;
-import de.danoeh.antennapod.storage.database.DBReader;
-import de.danoeh.antennapod.storage.database.NavDrawerData;
 import de.danoeh.antennapod.databinding.SubscriptionSelectionActivityBinding;
 import de.danoeh.antennapod.model.feed.Feed;
-import de.danoeh.antennapod.storage.preferences.UserPreferences;
-import io.reactivex.Observable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.schedulers.Schedulers;
+import de.danoeh.antennapod.storage.importexport.repository.SubscriptionRepository;
 
 public class SelectSubscriptionActivity extends AppCompatActivity {
 
     private static final String TAG = "SelectSubscription";
 
     private Disposable disposable;
+    //private volatile List<Feed> listItems;
+    private SubscriptionRepository repository;
+    private SubscriptionSelectionActivityBinding viewBinding;
+
     private volatile List<Feed> listItems;
 
-    private SubscriptionSelectionActivityBinding viewBinding;
+    private final MutableLiveData<List<Feed>> _subscriptions = new MutableLiveData<>();
+    public final LiveData<List<Feed>> subscriptions = _subscriptions;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         setTheme(ThemeSwitcher.getTranslucentTheme(this));
         super.onCreate(savedInstanceState);
-
+        this.repository = new SubscriptionRepository();
         viewBinding = SubscriptionSelectionActivityBinding.inflate(getLayoutInflater());
         setContentView(viewBinding.getRoot());
         setSupportActionBar(viewBinding.toolbar);
@@ -71,21 +75,6 @@ public class SelectSubscriptionActivity extends AppCompatActivity {
                 getBitmapFromUrl(listItems.get(checkedPosition[0]));
             }
         });
-
-    }
-
-    private List<Feed> getFeedItems(List<NavDrawerData.DrawerItem> items, List<Feed> result) {
-        for (NavDrawerData.DrawerItem item : items) {
-            if (item.type == NavDrawerData.DrawerItem.Type.TAG) {
-                getFeedItems(((NavDrawerData.TagDrawerItem) item).getChildren(), result);
-            } else {
-                Feed feed = ((NavDrawerData.FeedDrawerItem) item).feed;
-                if (!result.contains(feed)) {
-                    result.add(feed);
-                }
-            }
-        }
-        return result;
     }
 
     private void addShortcut(Feed feed, Bitmap bitmap) {
@@ -135,17 +124,12 @@ public class SelectSubscriptionActivity extends AppCompatActivity {
                     }
                 }).submit();
     }
-
+    //Usando o selectsubscriptionrepository
     private void loadSubscriptions() {
         if (disposable != null) {
             disposable.dispose();
         }
-        disposable = Observable.fromCallable(
-                () -> {
-                    NavDrawerData data = DBReader.getNavDrawerData(UserPreferences.getSubscriptionsFilter(),
-                            UserPreferences.getFeedOrder(), UserPreferences.getFeedCounterSetting());
-                    return getFeedItems(data.items, new ArrayList<>());
-                })
+        disposable = repository.getNavDrawerFeeds()
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(

@@ -25,26 +25,23 @@ import androidx.annotation.Nullable;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import androidx.core.app.ActivityCompat;
 import de.danoeh.antennapod.R;
-import de.danoeh.antennapod.net.download.serviceinterface.FeedUpdateManager;
 
-import de.danoeh.antennapod.storage.database.FeedDatabaseWriter;
 import de.danoeh.antennapod.databinding.OpmlSelectionBinding;
-import de.danoeh.antennapod.model.feed.Feed;
 import de.danoeh.antennapod.storage.importexport.OpmlElement;
 import de.danoeh.antennapod.storage.importexport.OpmlReader;
 import de.danoeh.antennapod.ui.common.ToolbarActivity;
-import io.reactivex.Completable;
 import io.reactivex.Observable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.schedulers.Schedulers;
 import org.apache.commons.io.ByteOrderMark;
 import org.apache.commons.io.input.BOMInputStream;
+import de.danoeh.antennapod.storage.importexport.repository.OpmlRepository;
+import io.reactivex.disposables.CompositeDisposable;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
@@ -59,6 +56,10 @@ public class OpmlImportActivity extends ToolbarActivity {
     private MenuItem selectAll;
     private MenuItem deselectAll;
     private ArrayList<OpmlElement> readElements;
+
+    private final OpmlRepository repository = new OpmlRepository(this);
+
+    private final CompositeDisposable disposables = new CompositeDisposable();
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -90,20 +91,17 @@ public class OpmlImportActivity extends ToolbarActivity {
         });
         viewBinding.butConfirm.setOnClickListener(v -> {
             viewBinding.progressBar.setVisibility(View.VISIBLE);
-            Completable.fromAction(() -> {
-                SparseBooleanArray checked = viewBinding.feedlist.getCheckedItemPositions();
-                for (int i = 0; i < checked.size(); i++) {
-                    if (!checked.valueAt(i)) {
-                        continue;
-                    }
-                    OpmlElement element = readElements.get(checked.keyAt(i));
-                    Feed feed = new Feed(element.getXmlUrl(), null,
-                            element.getText() != null ? element.getText() : "Unknown podcast");
-                    feed.setItems(Collections.emptyList());
-                    FeedDatabaseWriter.updateFeed(this, feed, false);
+
+            // Usando o OpmlRepository
+            SparseBooleanArray checked = viewBinding.feedlist.getCheckedItemPositions();
+            List<OpmlElement> selectedElements = new ArrayList<>();
+            for (int i = 0; i < checked.size(); i++) {
+                if (checked.valueAt(i)) {
+                    selectedElements.add(readElements.get(checked.keyAt(i)));
                 }
-                FeedUpdateManager.getInstance().runOnce(this);
-            })
+            }
+
+            disposables.add(repository.importSelectedFeeds(selectedElements)
                     .subscribeOn(Schedulers.io())
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(
@@ -117,7 +115,7 @@ public class OpmlImportActivity extends ToolbarActivity {
                                 e.printStackTrace();
                                 viewBinding.progressBar.setVisibility(View.GONE);
                                 Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
-                            });
+                            }));
         });
 
         Uri uri = getIntent().getData();
