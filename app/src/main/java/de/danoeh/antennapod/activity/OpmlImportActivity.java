@@ -25,29 +25,23 @@ import androidx.annotation.Nullable;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import androidx.core.app.ActivityCompat;
 import de.danoeh.antennapod.R;
-import de.danoeh.antennapod.net.download.serviceinterface.FeedUpdateManager;
 
-import de.danoeh.antennapod.storage.database.FeedDatabaseWriter;
 import de.danoeh.antennapod.databinding.OpmlSelectionBinding;
-import de.danoeh.antennapod.model.feed.Feed;
 import de.danoeh.antennapod.storage.importexport.OpmlElement;
 import de.danoeh.antennapod.storage.importexport.OpmlReader;
 import de.danoeh.antennapod.ui.common.ToolbarActivity;
-import io.reactivex.Completable;
 import io.reactivex.Observable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.schedulers.Schedulers;
 import org.apache.commons.io.ByteOrderMark;
 import org.apache.commons.io.input.BOMInputStream;
-import de.danoeh.antennapod.storage.repository.OpmlRepository;
+import de.danoeh.antennapod.storage.importexport.repository.OpmlRepository;
 import io.reactivex.disposables.CompositeDisposable;
-import io.reactivex.disposables.Disposable;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 

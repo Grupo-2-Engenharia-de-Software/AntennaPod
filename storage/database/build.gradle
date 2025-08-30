@@ -25,7 +25,7 @@ dependencies {
     annotationProcessor "androidx.annotation:annotation:$annotationVersion"
     implementation "androidx.core:core:$coreVersion"
     implementation 'androidx.documentfile:documentfile:1.0.1'
-    implementation project(':storage:importexport')
+    //implementation project(':storage:importexport')
 
     implementation "commons-io:commons-io:$commonsioVersion"
     implementation "org.greenrobot:eventbus:$eventbusVersion"

@@ -1,4 +1,4 @@
-package de.danoeh.antennapod.storage.repository;
+package de.danoeh.antennapod.storage.importexport.repository;
 
 import java.util.ArrayList;
 import java.util.HashSet;

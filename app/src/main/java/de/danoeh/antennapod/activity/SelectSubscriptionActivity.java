@@ -33,7 +33,7 @@ import de.danoeh.antennapod.model.feed.Feed;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.schedulers.Schedulers;
-import de.danoeh.antennapod.storage.repository.SubscriptionRepository;
+import de.danoeh.antennapod.storage.importexport.repository.SubscriptionRepository;
 
 public class SelectSubscriptionActivity extends AppCompatActivity {
 
