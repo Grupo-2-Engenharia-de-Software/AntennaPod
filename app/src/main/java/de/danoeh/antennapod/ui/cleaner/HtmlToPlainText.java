@@ -68,7 +68,7 @@ public class HtmlToPlainText {
      * @param element the root element to format
      * @return formatted text
      */
-    public String getPlainText(Element element) {
+    private String getPlainText(Element element) {
         FormattingVisitor formatter = new FormattingVisitor();
         // walk the DOM, and call .head() and .tail() for each node
         NodeTraversor.traverse(formatter, element);

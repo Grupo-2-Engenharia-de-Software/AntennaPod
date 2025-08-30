@@ -120,9 +120,13 @@ public class PreferenceUpgrader {
             SharedPreferences sleepTimerPreferences =
                     context.getSharedPreferences(SleepTimerPreferences.PREF_NAME, Context.MODE_PRIVATE);
             TimeUnit[] timeUnits = { TimeUnit.SECONDS, TimeUnit.MINUTES, TimeUnit.HOURS };
-            long value = Long.parseLong(SleepTimerPreferences.lastTimerValue());
-            TimeUnit unit = timeUnits[sleepTimerPreferences.getInt("LastTimeUnit", 1)];
-            SleepTimerPreferences.setLastTimer(String.valueOf(unit.toMinutes(value)));
+            long value = SleepTimerPreferences.lastTimerValue();
+            int unitIndex = sleepTimerPreferences.getInt("LastTimeUnit", 1);
+            if (unitIndex < 0 || unitIndex >= timeUnits.length) {
+                unitIndex = 1; // minutes
+            }
+            TimeUnit unit = timeUnits[unitIndex];
+            SleepTimerPreferences.setLastTimer(unit.toMinutes(value));
 
             if (prefs.getString(UserPreferences.PREF_EPISODE_CACHE_SIZE, "20")
                     .equals(context.getString(R.string.pref_episode_cache_unlimited))) {

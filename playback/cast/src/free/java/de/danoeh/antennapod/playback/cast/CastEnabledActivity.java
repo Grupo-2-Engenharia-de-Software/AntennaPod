@@ -14,4 +14,7 @@ public abstract class CastEnabledActivity extends AppCompatActivity {
     public final void requestCastButton(Menu menu) {
         // no-op
     }
+
+    // O método setPlayerVisible agora é mais simples, focando apenas no player
+    public abstract void setPlayerVisible(boolean visible);
 }

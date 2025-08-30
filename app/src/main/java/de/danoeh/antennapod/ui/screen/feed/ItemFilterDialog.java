@@ -39,7 +39,7 @@ public abstract class ItemFilterDialog extends BottomSheetDialogFragment {
         View layout = inflater.inflate(R.layout.filter_dialog, null, false);
         FilterDialogBinding binding = FilterDialogBinding.bind(layout);
         rows = binding.filterRows;
-        FeedItemFilter filter = (FeedItemFilter) getArguments().getSerializable(ARGUMENT_FILTER);
+        FeedItemFilter filter = getArguments().getParcelable(ARGUMENT_FILTER);
 
         //add filter rows
         for (FeedItemFilterGroup item : FeedItemFilterGroup.values()) {

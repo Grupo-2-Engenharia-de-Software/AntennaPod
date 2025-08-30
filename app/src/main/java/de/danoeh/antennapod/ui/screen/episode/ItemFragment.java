@@ -177,7 +177,7 @@ public class ItemFragment extends Fragment {
             } else if (actionButton1 == null) {
                 return; // Not loaded yet
             }
-            actionButton1.onClick(getContext());
+            actionButton1.performClick(getContext());
         });
         butAction2.setOnClickListener(v -> {
             if (actionButton2 instanceof DownloadActionButton && UserPreferences.isStreamOverDownload()
@@ -187,7 +187,7 @@ public class ItemFragment extends Fragment {
             } else if (actionButton2 == null) {
                 return; // Not loaded yet
             }
-            actionButton2.onClick(getContext());
+            actionButton2.performClick(getContext());
         });
         return layout;
     }
@@ -354,15 +354,8 @@ public class ItemFragment extends Fragment {
             }
         }
 
-        butAction1Text.setText(actionButton1.getLabel());
-        butAction1Text.setTransformationMethod(null);
-        butAction1Icon.setImageResource(actionButton1.getDrawable());
-        butAction1.setVisibility(actionButton1.getVisibility());
-
-        butAction2Text.setText(actionButton2.getLabel());
-        butAction2Text.setTransformationMethod(null);
-        butAction2Icon.setImageResource(actionButton2.getDrawable());
-        butAction2.setVisibility(actionButton2.getVisibility());
+        actionButton1.copyIntoViews(butAction1Text, butAction1Icon, butAction1);
+        actionButton2.copyIntoViews(butAction2Text, butAction2Icon, butAction2);
     }
 
     @Override

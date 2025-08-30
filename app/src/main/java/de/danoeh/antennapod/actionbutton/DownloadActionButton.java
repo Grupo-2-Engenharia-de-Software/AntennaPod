@@ -30,23 +30,23 @@ public class DownloadActionButton extends ItemActionButton {
 
     @Override
     @StringRes
-    public int getLabel() {
+    protected int getLabel() {
         return R.string.download_label;
     }
 
     @Override
     @DrawableRes
-    public int getDrawable() {
+    protected int getDrawable() {
         return R.drawable.ic_download;
     }
 
     @Override
-    public int getVisibility() {
+    protected int getVisibility() {
         return item.getFeed().isLocalFeed() ? View.INVISIBLE : View.VISIBLE;
     }
 
     @Override
-    public void onClick(Context context) {
+    protected void onClick(Context context) {
         final FeedMedia media = item.getMedia();
         if (media == null || shouldNotDownload(media)) {
             return;

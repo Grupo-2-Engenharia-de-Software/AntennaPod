@@ -193,6 +193,12 @@ public class VideoplayerActivity extends CastEnabledActivity implements SeekBar.
         EventBus.getDefault().register(this);
     }
 
+
+    public void setPlayerVisible(boolean visible) {
+        Log.d(TAG, "setPlayerVisible: " + visible);
+        // Implementação para video player
+    }
+
     @Override
     protected void onPause() {
         if (!PictureInPictureUtil.isInPictureInPictureMode(this)) {
